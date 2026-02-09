@@ -14,7 +14,7 @@ NULL
 #' @param api_key `r lifecycle::badge("deprecated")` Use `credentials` instead.
 #' @param credentials `r api_key_param("CEREBRAS_API_KEY")`
 #' @param base_url The base URL to the endpoint; the default uses Cerebras.
-#' @param model `r param_model("llama3.1-8b")`
+#' @param model `r param_model("gpt-oss-120b")`
 #' @param params Common model parameters, usually created by [params()].
 #' @inherit chat_openai return
 #' @examples
@@ -33,7 +33,9 @@ chat_cerebras <- function(
   echo = NULL,
   api_headers = character()
 ) {
-  model <- set_default(model, "llama3.1-8b")
+
+  model <- set_default(model, "gpt-oss-120b")
+
   echo <- check_echo(echo)
 
   credentials <- as_credentials(
