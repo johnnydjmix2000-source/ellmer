@@ -33,7 +33,8 @@ chat_cerebras <- function(
   echo = NULL,
   api_headers = character()
 ) {
-  model <- set_default(model, "openai/gpt-oss-120b")
+  
+  model <- set_default(model, "gpt-oss-120b")
   echo <- check_echo(echo)
 
   credentials <- as_credentials(
@@ -61,6 +62,7 @@ ProviderCerebras <- new_class(
   "ProviderCerebras",
   parent = ProviderOpenAICompatible
 )
+
 
 method(as_json, list(ProviderCerebras, Turn)) <- function(provider, x, ...) {
   if (is_assistant_turn(x)) {
