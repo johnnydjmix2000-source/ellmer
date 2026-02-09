@@ -1,33 +1,30 @@
 #' @include provider-openai-compatible.R
 NULL
 
-#' Chat with a model hosted on Groq
+#' Chat with a model hosted on Cerebras
 #'
 #' @description
-#' Sign up at <https://groq.com>.
+#' Sign up at <https://www.cerebras.ai>.
 #'
 #' Built on top of [chat_openai_compatible()].
 #'
-#' ## Known limitations
-#'
-#' groq does not currently support structured data extraction.
-#'
 #' @export
 #' @family chatbots
+#' @inheritParams chat_openai
 #' @param api_key `r lifecycle::badge("deprecated")` Use `credentials` instead.
-#' @param credentials `r api_key_param("GROQ_API_KEY")`
+#' @param credentials `r api_key_param("CEREBRAS_API_KEY")`
+#' @param base_url The base URL to the endpoint; the default uses Cerebras.
 #' @param model `r param_model("openai/gpt-oss-120b")`
 #' @param params Common model parameters, usually created by [params()].
-#' @inheritParams chat_openai
 #' @inherit chat_openai return
 #' @examples
 #' \dontrun{
-#' chat <- chat_groq()
+#' chat <- chat_cerebras()
 #' chat$chat("Tell me three jokes about statisticians")
 #' }
-chat_groq <- function(
+chat_cerebras <- function(
   system_prompt = NULL,
-  base_url = "https://api.groq.com/openai/v1",
+  base_url = "https://api.cerebras.ai/v1",
   api_key = NULL,
   credentials = NULL,
   model = NULL,
@@ -40,17 +37,16 @@ chat_groq <- function(
   echo <- check_echo(echo)
 
   credentials <- as_credentials(
-    "chat_groq",
-    function() groq_key(),
+    "chat_cerebras",
+    function() cerebras_key(),
     credentials = credentials,
     api_key = api_key
   )
 
-  # https://console.groq.com/docs/api-reference#chat-create (same as OpenAI)
   params <- params %||% params()
 
-  provider <- ProviderGroq(
-    name = "Groq",
+  provider <- ProviderCerebras(
+    name = "Cerebras",
     base_url = base_url,
     model = model,
     params = params,
@@ -61,15 +57,18 @@ chat_groq <- function(
   Chat$new(provider = provider, system_prompt = system_prompt, echo = echo)
 }
 
-ProviderGroq <- new_class("ProviderGroq", parent = ProviderOpenAICompatible)
+ProviderCerebras <- new_class(
+  "ProviderCerebras",
+  parent = ProviderOpenAICompatible
+)
 
-method(as_json, list(ProviderGroq, Turn)) <- function(provider, x, ...) {
+method(as_json, list(ProviderCerebras, Turn)) <- function(provider, x, ...) {
   if (is_assistant_turn(x)) {
     # Tool requests come out of content and go into own argument
     is_tool <- map_lgl(x@contents, is_tool_request)
     tool_calls <- as_json(provider, x@contents[is_tool], ...)
 
-    # Grok contents is just a string. Hopefully it never sends back more
+    # Cerebras contents is just a string. Hopefully it never sends back more
     # than a single text response.
     if (any(!is_tool)) {
       content <- x@contents[!is_tool][[1]]@text
@@ -89,9 +88,13 @@ method(as_json, list(ProviderGroq, Turn)) <- function(provider, x, ...) {
   }
 }
 
-method(as_json, list(ProviderGroq, TypeObject)) <- function(provider, x, ...) {
+method(as_json, list(ProviderCerebras, TypeObject)) <- function(
+  provider,
+  x,
+  ...
+) {
   if (x@additional_properties) {
-    cli::cli_abort("{.arg .additional_properties} not supported for Groq.")
+    cli::cli_abort("{.arg .additional_properties} not supported for Cerebras.")
   }
   required <- map_lgl(x@properties, function(prop) prop@required)
 
@@ -103,7 +106,11 @@ method(as_json, list(ProviderGroq, TypeObject)) <- function(provider, x, ...) {
   ))
 }
 
-method(as_json, list(ProviderGroq, ToolDef)) <- function(provider, x, ...) {
+method(as_json, list(ProviderCerebras, ToolDef)) <- function(
+  provider,
+  x,
+  ...
+) {
   list(
     type = "function",
     "function" = compact(list(
@@ -114,6 +121,6 @@ method(as_json, list(ProviderGroq, ToolDef)) <- function(provider, x, ...) {
   )
 }
 
-groq_key <- function() {
-  key_get("GROQ_API_KEY")
+cerebras_key <- function() {
+  key_get("CEREBRAS_API_KEY")
 }
