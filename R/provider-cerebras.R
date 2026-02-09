@@ -14,7 +14,7 @@ NULL
 #' @param api_key `r lifecycle::badge("deprecated")` Use `credentials` instead.
 #' @param credentials `r api_key_param("CEREBRAS_API_KEY")`
 #' @param base_url The base URL to the endpoint; the default uses Cerebras.
-#' @param model `r param_model("gpt-oss-120b")`
+#' @param model `r param_model("openai/gpt-oss-120b")`
 #' @param params Common model parameters, usually created by [params()].
 #' @inherit chat_openai return
 #' @examples
@@ -33,9 +33,8 @@ chat_cerebras <- function(
   echo = NULL,
   api_headers = character()
 ) {
-
+  
   model <- set_default(model, "gpt-oss-120b")
-
   echo <- check_echo(echo)
 
   credentials <- as_credentials(
@@ -63,6 +62,66 @@ ProviderCerebras <- new_class(
   "ProviderCerebras",
   parent = ProviderOpenAICompatible
 )
+
+
+method(as_json, list(ProviderCerebras, Turn)) <- function(provider, x, ...) {
+  if (is_assistant_turn(x)) {
+    # Tool requests come out of content and go into own argument
+    is_tool <- map_lgl(x@contents, is_tool_request)
+    tool_calls <- as_json(provider, x@contents[is_tool], ...)
+
+    # Cerebras contents is just a string. Hopefully it never sends back more
+    # than a single text response.
+    if (any(!is_tool)) {
+      content <- x@contents[!is_tool][[1]]@text
+    } else {
+      content <- NULL
+    }
+
+    list(
+      compact(list(
+        role = "assistant",
+        content = content,
+        tool_calls = tool_calls
+      ))
+    )
+  } else {
+    as_json(super(provider, ProviderOpenAICompatible), x, ...)
+  }
+}
+
+method(as_json, list(ProviderCerebras, TypeObject)) <- function(
+  provider,
+  x,
+  ...
+) {
+  if (x@additional_properties) {
+    cli::cli_abort("{.arg .additional_properties} not supported for Cerebras.")
+  }
+  required <- map_lgl(x@properties, function(prop) prop@required)
+
+  compact(list(
+    type = "object",
+    description = x@description,
+    properties = as_json(provider, x@properties, ...),
+    required = as.list(names2(x@properties)[required])
+  ))
+}
+
+method(as_json, list(ProviderCerebras, ToolDef)) <- function(
+  provider,
+  x,
+  ...
+) {
+  list(
+    type = "function",
+    "function" = compact(list(
+      name = x@name,
+      description = x@description,
+      parameters = as_json(provider, x@arguments, ...)
+    ))
+  )
+}
 
 cerebras_key <- function() {
   key_get("CEREBRAS_API_KEY")
